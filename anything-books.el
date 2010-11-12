@@ -41,22 +41,53 @@
 ;; (global-set-key (kbd "M-8") 'anything-books-command) ; key bind example
 ;; 
 
+;;; Customize
+
+;; ## Cache directory
+;; 
+;; This program creates a cache directory for PDF cover images at the
+;; PDF directory.  The directory name of the cache directory is the
+;; value of `abks:cache-dir', the default is `.cache'.
+
+;; ## PDF cover image
+;; 
+;; The cover images for the PDF files are created by the program
+;; `abks:mkcover-cmd', the default is `evince-thumbnailer' which is
+;; default document browser of the GNOME desktop environment.  If you
+;; have the ImageMagick and the GhostScript, you can use the command
+;; `convert' to make a cover image. Note that `evince-thumbnailer'
+;; works faster than `convert'.
+;; 
+;; The other programs can be also available, such as `pdfimages',
+;; `pdf2png' and so on.
+
 (require 'cl)
 (require 'concurrent)
 
 ;;; Code:
 
 (defvar abks:books-dir nil)
-(defvar abks:cache-dir ".cache")
-(defvar abks:cache-pixel "600")
+
 (defvar abks:open-command "acroread")
-(defvar abks:preview-temp-dir "/tmp" "A directory to save a preview image temporally.")
+
+(defvar abks:cache-dir ".cache")
+
+;; for evince setting
+(defvar abks:cache-pixel "600")
+(defvar abks:mkcover-cmd-pdf-postfix nil)
+(defvar abks:mkcover-cmd '("evince-thumbnailer" "-s" size pdf jpeg))
+
+;; for ImageMagick and GhostScript setting
+;; (setq abks:cache-pixel "600x600")
+;; (setq abks:mkcover-cmd-pdf-postfix "[0]")
+;; (setq abks:mkcover-cmd '("convert" "-resize" size pdf jpeg))
 
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
 
-(defvar abks:mkcover-cmd '("evince-thumbnailer" "-s" size pdf jpeg))
 (defvar abks:convert-cmd '("convert" "-resize" size from to))
+(defvar abks:preview-temp-dir "/tmp" "A directory to save a preview image temporally.")
+
 
 
 
@@ -103,9 +134,9 @@
   (and (file-exists-p file)
        (< 0 (nth 7 (file-attributes file)))))
 
-(defun abks:fix-directory ()
+(defun abks:fix-directory (path)
   "Make a directory for cache files in the current directory which has visiting file."
-  (let ((img-dir (expand-file-name abks:cache-dir abks:books-dir)))
+  (let ((img-dir (expand-file-name abks:cache-dir (file-name-directory path))))
     (unless (file-directory-p img-dir)
       (make-directory img-dir))
     (unless (file-directory-p img-dir)
@@ -117,13 +148,13 @@
                     (file-name-nondirectory path))))
     (expand-file-name 
      (concat file-head ".jpg")
-     (abks:fix-directory))))
+     (abks:fix-directory path))))
 
 (defun abks:get-convert-tmp-file ()
   (expand-file-name "_preview_org.jpg" abks:preview-temp-dir))
 
 (defun abks:get-preview-tmp-file ()
-  (expand-file-name "_preview_resized.png" abks:preview-temp-dir))
+  (expand-file-name "_preview_resized.jpg" abks:preview-temp-dir))
 
 (defun abks:get-image-type (file)
   (let ((type (intern (file-name-extension file))))
@@ -290,7 +321,7 @@
                    (abks:list-template 
                     abks:mkcover-cmd
                     `((size . ,abks:cache-pixel)
-                      (pdf . ,path) 
+                      (pdf . ,(concat path abks:mkcover-cmd-pdf-postfix))
                       (jpeg . ,jpeg-file))))))
         (abks:preview-progress it 2 4)
         (deferred:nextc it
@@ -392,15 +423,27 @@
 (defun abks:file-to-title (path)
   (substring (file-name-nondirectory path) 0 -4))
 
+(defvar abks:preview-action-last-title nil
+  "[internal] Preventing the duplicate action invocation.")
+
 (defun abks:preview-action (file)
   (let ((title (abks:file-to-title file)))
-    (abks:preview title file)))
+    (unless (equal title abks:preview-action-last-title)
+      (setq abks:preview-action-last-title title)
+      (abks:preview title file))))
 
-(defun abks:collect-files () ; fix: subdirectories
-  (loop for i in (directory-files (expand-file-name abks:books-dir))
-        for f = (expand-file-name i abks:books-dir)
+(defun abks:collect-files-sort (a b)
+  (string-lessp (car a) (car b)))
+
+(defun abks:collect-files (&optional dir)
+  (loop for i in (directory-files (expand-file-name (or dir abks:books-dir)))
+        for f = (expand-file-name i (or dir abks:books-dir))
+        with lst = nil
         if (and (file-regular-p f) (string-match ".pdf$" i))
-        collect (cons (abks:file-to-title i) f)))
+        do (push (cons (abks:file-to-title i) f) lst)
+        if (and (file-directory-p f) (string-match "[^\\.]$" i))
+        do (nconc lst (abks:collect-files f))
+        finally return (sort lst 'abks:collect-files-sort)))
 
 (defun abks:open-file (file)
   (deferred:process abks:open-command file)
@@ -422,22 +465,32 @@
     (anything-execute-persistent-action)))
 (ad-deactivate-regexp "abks:anything")
 
+(defun abks:command-startup ()
+  (setq abks:preview-window nil
+        abks:preview-image-cache nil
+        abks:preview-action-last-title nil)
+  (cc:semaphore-release-all abks:preview-semaphore)
+  (ad-activate-regexp "abks:anything"))
+
+(defun abks:command-cleanup ()
+  (loop for f in (list (abks:get-convert-tmp-file)
+                       (abks:get-preview-tmp-file))
+        if (file-exists-p f)
+        do (ignore-errors (delete-file f)))
+  (setq abks:preview-image-cache nil
+        abks:preview-window nil)
+  (ad-deactivate-regexp "abks:anything"))
+
 (defun anything-books-command ()
   (interactive)
   (cond
    ((null abks:books-dir)
     (message "Set your book dir: `abks:books-dir'."))
    (t
-    (setq abks:preview-window nil
-          abks:preview-image-cache nil)
-    (cc:semaphore-release-all abks:preview-semaphore)
-    (ad-activate-regexp "abks:anything")
+    (abks:command-startup)
     (unwind-protect
         (anything anything-books-source)
-      (progn
-        (setq abks:preview-image-cache nil
-              abks:preview-window nil)
-        (ad-deactivate-regexp "abks:anything"))))))
+      (abks:command-cleanup)))))
 
 ;; (setq abks:debug t)
 ;; (eval-current-buffer)
