@@ -242,9 +242,10 @@
       (erase-buffer)
       (cond 
        (path
-        (insert " ")
-        (add-text-properties (point-min) (point-max) (list 'display img))
-        (goto-char (point-min)))
+        (insert (propertize " " 'display `(space :align-to (+ center (-0.5 . ,img)))))
+        (insert-image img)
+        (let ((win (get-buffer-window abks:preview-buffer)))
+          (when win (set-window-point win (1+ (point-min))))))
        (t
         (insert "No image..."))))))
 
