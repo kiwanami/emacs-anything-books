@@ -210,7 +210,7 @@
 
 (defun abks:preview-buffer-init (title)
   (let ((buf (get-buffer abks:preview-buffer)))
-    (unless buf
+    (unless (and buf (buffer-live-p buf))
       (setq buf (get-buffer-create abks:preview-buffer))
       (with-current-buffer buf
         (buffer-disable-undo buf)
@@ -223,11 +223,14 @@
       (loop for i in '((show-image . abks:preview-buffer-on-show-image)
                        (progress . abks:preview-buffer-on-show-progress)
                        (animation . abks:preview-buffer-on-show-animation)
-                       (image-load-start . abks:preview-buffer-start-animation)
-                       (image-load-finish . abks:preview-buffer-stop-animation))
+                       (image-convert-start . abks:preview-buffer-start-animation)
+                       (image-convert-finish . abks:preview-buffer-stop-animation))
             for ev = (car i)
             for f = (cdr i)
-            do (cc:signal-connect abks:anything-channel ev f)))
+            do (cc:signal-connect abks:anything-channel ev f))
+      (when abks:debug
+        (cc:signal-connect abks:anything-channel 
+                           t (lambda (args) (abks:log "SIGNAL / %S" (car args))))))
     (cc:signal-send abks:anything-channel 'show-image title nil nil)
     buf))
 
@@ -367,7 +370,7 @@
           (abks:preview-image-convert-d it path)
           (deferred:nextc it
             (lambda (ifile)
-              (abks:log ">>   add cache : %s " ifile)
+              (abks:log ">>   add cache : %s " path)
               (clear-image-cache)
               (let ((img (create-image
                           (abks:preview-load-image-data ifile) 
@@ -392,7 +395,8 @@
 
 (defun abks:preview-get-preview-window ()
   (let ((win (anything-window)))
-    (unless abks:preview-window
+    (unless (and abks:preview-window 
+                 (window-live-p abks:preview-window))
       (setq abks:preview-window 
             (cond
              ((< (window-width win) (* 2 (window-height win)))
@@ -456,7 +460,7 @@
     (action 
      ("Open" 
       . (lambda (x) (abks:open-file x)))
-     ("Add Title to kill-ring" 
+     ("Add the book title to kill-ring" 
       . (lambda (x) (kill-new x))))
     (migemo)
     (persistent-action . abks:preview-action)))
@@ -467,20 +471,29 @@
 (ad-deactivate-regexp "abks:anything")
 
 (defun abks:command-startup ()
+  (abks:log ">> startup...")
   (setq abks:preview-window nil
         abks:preview-image-cache nil
         abks:preview-action-last-title nil)
   (cc:semaphore-release-all abks:preview-semaphore)
-  (ad-activate-regexp "abks:anything"))
+  (ad-activate-regexp "abks:anything")
+  (abks:log ">> startup finished."))
 
 (defun abks:command-cleanup ()
+  (abks:log ">> cleanup...")
   (loop for f in (list (abks:get-convert-tmp-file)
                        (abks:get-preview-tmp-file))
         if (file-exists-p f)
         do (ignore-errors (delete-file f)))
   (setq abks:preview-image-cache nil
         abks:preview-window nil)
-  (ad-deactivate-regexp "abks:anything"))
+  (let ((buf (get-buffer abks:preview-buffer)))
+    (when (and buf (buffer-live-p buf))
+      (kill-buffer buf)))
+  (abks:preview-buffer-stop-animation)
+  (cc:signal-disconnect-all abks:anything-channel)
+  (ad-deactivate-regexp "abks:anything")
+  (abks:log ">> cleanup finished %S." abks:anything-channel))
 
 (defun anything-books-command ()
   (interactive)
