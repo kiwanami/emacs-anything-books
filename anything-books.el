@@ -447,7 +447,7 @@
         if (and (file-regular-p f) (string-match ".pdf$" i))
         do (push (cons (abks:file-to-title i) f) lst)
         if (and (file-directory-p f) (string-match "[^\\.]$" i))
-        do (nconc lst (abks:collect-files f))
+        do (setq lst (nconc lst (abks:collect-files f)))
         finally return (sort lst 'abks:collect-files-sort)))
 
 (defun abks:open-file (file)
