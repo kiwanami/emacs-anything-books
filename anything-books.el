@@ -31,7 +31,7 @@
 ;; - deferred.el (http://github.com/kiwanami/emacs-deferred/raw/master/deferred.el)
 ;; - concurrent.el (http://github.com/kiwanami/emacs-deferred/raw/master/concurrent.el)
 ;; - evince-thumbnailer, ImageMagick(convert)
-;; If you have an another method to create a cover image from a PDF file, 
+;; If you have an another method to create a cover image from a PDF file,
 ;; you can use it with some customize variables.
 
 ;; Put anything-books.el in your load-path, and add following code.
@@ -39,25 +39,25 @@
 ;; (require 'anything-books)
 ;; (setq abks:boos-dir "your PDF library path!")
 ;; (global-set-key (kbd "M-8") 'anything-books-command) ; key bind example
-;; 
+;;
 
 ;;; Customize
 
 ;; ## Cache directory
-;; 
+;;
 ;; This program creates a cache directory for PDF cover images at the
 ;; PDF directory.  The directory name of the cache directory is the
 ;; value of `abks:cache-dir', the default is `.cache'.
 
 ;; ## PDF cover image
-;; 
+;;
 ;; The cover images for the PDF files are created by the program
 ;; `abks:mkcover-cmd', the default is `evince-thumbnailer' which is
 ;; default document browser of the GNOME desktop environment.  If you
 ;; have the ImageMagick and the GhostScript, you can use the command
 ;; `convert' to make a cover image. Note that `evince-thumbnailer'
 ;; works faster than `convert'.
-;; 
+;;
 ;; The other programs can be also available, such as `pdfimages',
 ;; `pdf2png' and so on.
 
@@ -105,7 +105,7 @@
 
 (defmacro abks:log (&rest args)
   (when abks:debug
-    `(progn 
+    `(progn
        (with-current-buffer (get-buffer-create "*anything-books-debug*")
          (save-excursion
            (goto-char (point-max))
@@ -114,7 +114,7 @@
 
 (defun abks:message-mark ()
   (interactive)
-  (abks:log "==================== mark ==== %s" 
+  (abks:log "==================== mark ==== %s"
             (format-time-string "%H:%M:%S" (current-time))))
 
 (defun abks:debug-report-semaphore ()
@@ -131,7 +131,7 @@
 (defun abks:list-template (template-list data-alist)
   (loop for i in template-list
         collect
-        (cond 
+        (cond
          ((symbolp i)
           (cdr (assq i data-alist)))
          (t i))))
@@ -150,9 +150,9 @@
     img-dir))
 
 (defun abks:get-cache-path (path)
-  (let ((file-head (file-name-sans-extension 
+  (let ((file-head (file-name-sans-extension
                     (file-name-nondirectory path))))
-    (expand-file-name 
+    (expand-file-name
      (concat file-head ".jpg")
      (abks:fix-directory path))))
 
@@ -171,7 +171,7 @@
 
 (defun abks:get-image-type (file)
   (let ((type (intern (file-name-extension file))))
-    (cond 
+    (cond
      ((eq type 'jpg) 'jpeg)
      (t type))))
 
@@ -185,7 +185,7 @@
         (deferred:nextc d
           (lambda (x) (ignore-errors (copy-file from-path to-path t t)))))
       (deferred:nextc it
-        (lambda (x) 
+        (lambda (x)
           (unless (abks:file-exists-p to-path)
             (error "Can not copy the file : %s -> %s" from-path to-path))
           to-path)))))
@@ -207,7 +207,7 @@
                   (loop for i in abks:preview-image-cache
                         for ipath = (car i)
                         with count = 1
-                        unless (or (equal path ipath) 
+                        unless (or (equal path ipath)
                                    (<= abks:preview-image-cache-num count))
                         collect (progn (incf count) i)))))
     (cdr cached-pair)))
@@ -242,7 +242,7 @@
             for f = (cdr i)
             do (cc:signal-connect abks:anything-channel ev f))
       (when abks:debug
-        (cc:signal-connect abks:anything-channel 
+        (cc:signal-connect abks:anything-channel
                            t (lambda (args) (abks:log "SIGNAL / %S" (car args))))))
     (cc:signal-send abks:anything-channel 'show-image title nil nil)
     buf))
@@ -256,7 +256,7 @@
             preview-progress "")
       (abks:preview-buffer-update-mode-line)
       (erase-buffer)
-      (cond 
+      (cond
        (path
         (insert (propertize " " 'display `(space :align-to (+ center (-0.5 . ,img)))))
         (insert-image img)
@@ -269,9 +269,9 @@
 
 (defun abks:preview-buffer-update-mode-line ()
   (let ((anm "-/|\\"))
-    (setq mode-line-format 
+    (setq mode-line-format
           (format abks:preview-mode-line-format
-                  (char-to-string 
+                  (char-to-string
                    (aref anm (% preview-count (length anm))))
                   preview-progress preview-title)))
   (force-mode-line-update))
@@ -296,8 +296,8 @@
 (defun abks:preview-buffer-start-animation ()
   (unless abks:preview-buffer-thread
     (setq abks:preview-buffer-thread t)
-    (cc:thread 
-     60 
+    (cc:thread
+     60
      (while abks:preview-buffer-thread
        (cc:signal-send abks:anything-channel 'animation)))))
 
@@ -320,7 +320,7 @@
   "Translate a PDF file to JPEG file and place the file at the cache directory."
   (abks:log ">> abks:preview-image-create-d : %s" path)
   (lexical-let
-      ((path path) 
+      ((path path)
        (jpeg-file (abks:get-convert-tmp-file))
        (cache-file (abks:get-cache-path path))
        (thum-file (abks:get-cache-path-for-qlmanager path)))
@@ -336,8 +336,8 @@
           (lambda (x)
             (abks:log ">>   mkcover : %s -> %s" path jpeg-file)
             (abks:log ">>   qlmanager : %s -> %s" path thum-file)
-            (apply 'deferred:process 
-                   (abks:list-template 
+            (apply 'deferred:process
+                   (abks:list-template
                     abks:mkcover-cmd
                     `((size . ,abks:cache-pixel)
                       (pdf . ,(concat path abks:mkcover-cmd-pdf-postfix))
@@ -391,7 +391,7 @@
               (abks:log ">>   add cache : %s " path)
               (clear-image-cache)
               (let ((img (create-image
-                          (abks:preview-load-image-data ifile) 
+                          (abks:preview-load-image-data ifile)
                           (abks:get-image-type ifile) t)))
                 (abks:preview-image-cache-add path img)
                 img)))
@@ -413,16 +413,16 @@
 
 (defun abks:preview-get-preview-window ()
   (let ((win (anything-window)))
-    (unless (and abks:preview-window 
+    (unless (and abks:preview-window
                  (window-live-p abks:preview-window))
-      (setq abks:preview-window 
+      (setq abks:preview-window
             (cond
              ((< (window-width win) (* 2 (window-height win)))
               (split-window win))
              (t
               (split-window win (/ (window-width win) 2) t))))
-      (set-window-buffer 
-       abks:preview-window 
+      (set-window-buffer
+       abks:preview-window
        (abks:preview-buffer-init "No Image...")))
     abks:preview-window))
 
@@ -475,10 +475,10 @@
 (defvar anything-books-source
   '((name . "PDF Books")
     (candidates . abks:collect-files)
-    (action 
-     ("Open" 
+    (action
+     ("Open"
       . (lambda (x) (abks:open-file x)))
-     ("Add the book title to kill-ring" 
+     ("Add the book title to kill-ring"
       . (lambda (x) (kill-new x))))
     (migemo)
     (persistent-action . abks:preview-action)))
