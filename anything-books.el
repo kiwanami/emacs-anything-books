@@ -82,6 +82,12 @@
 ;; (setq abks:mkcover-cmd-pdf-postfix "[0]")
 ;; (setq abks:mkcover-cmd '("convert" "-resize" size pdf jpeg))
 
+;; for Quick Look setting
+;; (setq abks:cache-pixel "600")
+;; (setq abks:mkcover-cmd-pdf-postfix "")
+;; (setq abks:mkcover-cmd '("qlmanage" "-t" pdf "-s" size "-o" dir))
+
+
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
 
@@ -148,6 +154,13 @@
                     (file-name-nondirectory path))))
     (expand-file-name 
      (concat file-head ".jpg")
+     (abks:fix-directory path))))
+
+(defun abks:get-cache-path-for-qlmanager (path)
+  "cached file name which made by qlmanager"
+  (let ((file-head (file-name-nondirectory path)))
+    (expand-file-name
+     (concat file-head ".png")
      (abks:fix-directory path))))
 
 (defun abks:get-convert-tmp-file ()
@@ -309,7 +322,8 @@
   (lexical-let
       ((path path) 
        (jpeg-file (abks:get-convert-tmp-file))
-       (cache-file (abks:get-cache-path path)))
+       (cache-file (abks:get-cache-path path))
+       (thum-file (abks:get-cache-path-for-qlmanager path)))
     (cond
      ((abks:file-exists-p cache-file)
       (abks:log ">>   cache file... : %s" cache-file)
@@ -321,18 +335,22 @@
         (deferred:nextc it
           (lambda (x)
             (abks:log ">>   mkcover : %s -> %s" path jpeg-file)
+            (abks:log ">>   qlmanager : %s -> %s" path thum-file)
             (apply 'deferred:process 
                    (abks:list-template 
                     abks:mkcover-cmd
                     `((size . ,abks:cache-pixel)
                       (pdf . ,(concat path abks:mkcover-cmd-pdf-postfix))
-                      (jpeg . ,jpeg-file))))))
+                      (jpeg . ,jpeg-file)
+                      (dir . ,(abks:fix-directory path)))))))
         (abks:preview-progress it 2 4)
         (deferred:nextc it
           (lambda (err)
             (if (abks:file-exists-p jpeg-file)
                 (abks:copy-file-d nil jpeg-file cache-file)
-              (error err)))))))))
+              (if (abks:file-exists-p thum-file)
+                  (abks:copy-file-d nil thum-file cache-file)
+                (error err))))))))))
 
 (defun abks:preview-image-convert-d(d path)
   (deferred:nextc d
