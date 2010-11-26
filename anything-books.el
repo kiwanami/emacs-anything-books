@@ -1,6 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
+;; Time-stamp: <2010-11-26 14:30:44 sakurai>
 
 ;; Author: SAKURAI Masashi <sakurai at kiwanami.net>
 ;; Keywords: anything, convenience
@@ -58,6 +59,9 @@
 ;; `convert' to make a cover image. Note that `evince-thumbnailer'
 ;; works faster than `convert'.
 ;;
+;; Mac users (Leopard or later) can use `qlmanager' to create a cover
+;; image. (thx @peccul)
+;;
 ;; The other programs can be also available, such as `pdfimages',
 ;; `pdf2png' and so on.
 
@@ -75,18 +79,20 @@
 ;; for evince setting
 (defvar abks:cache-pixel "600")
 (defvar abks:mkcover-cmd-pdf-postfix nil)
-(defvar abks:mkcover-cmd '("evince-thumbnailer" "-s" size pdf jpeg))
+(defvar abks:mkcover-cmd '("evince-thumbnailer" "-s" size pdf thum))
+(defvar abks:mkcover-image-ext ".png")
 
 ;; for ImageMagick and GhostScript setting
 ;; (setq abks:cache-pixel "600x600")
 ;; (setq abks:mkcover-cmd-pdf-postfix "[0]")
-;; (setq abks:mkcover-cmd '("convert" "-resize" size pdf jpeg))
+;; (setq abks:mkcover-cmd '("convert" "-resize" size pdf cache))
+;; (setq abks:mkcover-image-ext ".jpg")
 
-;; for Quick Look setting
+;; for Mac (Quick Look) setting
 ;; (setq abks:cache-pixel "600")
 ;; (setq abks:mkcover-cmd-pdf-postfix "")
 ;; (setq abks:mkcover-cmd '("qlmanage" "-t" pdf "-s" size "-o" dir))
-
+;; (setq abks:mkcover-image-ext ".png")
 
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
@@ -153,21 +159,18 @@
   (let ((file-head (file-name-sans-extension
                     (file-name-nondirectory path))))
     (expand-file-name
-     (concat file-head ".jpg")
+     (concat file-head abks:mkcover-image-ext)
      (abks:fix-directory path))))
 
-(defun abks:get-cache-path-for-qlmanager (path)
-  "cached file name which made by qlmanager"
-  (let ((file-head (file-name-nondirectory path)))
-    (expand-file-name
-     (concat file-head ".png")
-     (abks:fix-directory path))))
-
-(defun abks:get-convert-tmp-file ()
-  (expand-file-name "_preview_org.jpg" abks:preview-temp-dir))
+(defun abks:get-cover-image-file (path)
+  (expand-file-name
+   (concat (file-name-nondirectory path) abks:mkcover-image-ext)
+   abks:preview-temp-dir))
 
 (defun abks:get-preview-tmp-file ()
-  (expand-file-name "_preview_resized.jpg" abks:preview-temp-dir))
+  (expand-file-name 
+   (concat "_preview_resized" abks:mkcover-image-ext)
+   abks:preview-temp-dir))
 
 (defun abks:get-image-type (file)
   (let ((type (intern (file-name-extension file))))
@@ -317,13 +320,12 @@
 
 
 (defun abks:preview-image-create-d (d path)
-  "Translate a PDF file to JPEG file and place the file at the cache directory."
+  "Translate a PDF file to thumbnail file and place the file at the cache directory."
   (abks:log ">> abks:preview-image-create-d : %s" path)
   (lexical-let
       ((path path)
-       (jpeg-file (abks:get-convert-tmp-file))
        (cache-file (abks:get-cache-path path))
-       (thum-file (abks:get-cache-path-for-qlmanager path)))
+       (thum-file (abks:get-cover-image-file path)))
     (cond
      ((abks:file-exists-p cache-file)
       (abks:log ">>   cache file... : %s" cache-file)
@@ -334,23 +336,20 @@
       (deferred:$ d
         (deferred:nextc it
           (lambda (x)
-            (abks:log ">>   mkcover : %s -> %s" path jpeg-file)
-            (abks:log ">>   qlmanager : %s -> %s" path thum-file)
+            (abks:log ">>   mkcover : %s -> %s" path thum-file)
             (apply 'deferred:process
                    (abks:list-template
                     abks:mkcover-cmd
                     `((size . ,abks:cache-pixel)
                       (pdf . ,(concat path abks:mkcover-cmd-pdf-postfix))
-                      (jpeg . ,jpeg-file)
-                      (dir . ,(abks:fix-directory path)))))))
+                      (thum . ,thum-file) (jpeg . ,thum-file)
+                      (dir . ,abks:preview-temp-dir))))))
         (abks:preview-progress it 2 4)
         (deferred:nextc it
           (lambda (err)
-            (if (abks:file-exists-p jpeg-file)
-                (abks:copy-file-d nil jpeg-file cache-file)
-              (if (abks:file-exists-p thum-file)
-                  (abks:copy-file-d nil thum-file cache-file)
-                (error err))))))))))
+            (if (or t (abks:file-exists-p thum-file))
+                (abks:copy-file-d nil thum-file cache-file)
+              (error err)))))))))
 
 (defun abks:preview-image-convert-d(d path)
   (deferred:nextc d
@@ -499,8 +498,7 @@
 
 (defun abks:command-cleanup ()
   (abks:log ">> cleanup...")
-  (loop for f in (list (abks:get-convert-tmp-file)
-                       (abks:get-preview-tmp-file))
+  (loop for f in (list (abks:get-preview-tmp-file))
         if (file-exists-p f)
         do (ignore-errors (delete-file f)))
   (setq abks:preview-image-cache nil
