@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 16:47:56 sakurai>
+;; Time-stamp: <2010-11-26 18:23:21 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.1
@@ -60,7 +60,7 @@
 ;; `convert' to make a cover image. Note that `evince-thumbnailer'
 ;; works faster than `convert'.
 ;;
-;; Mac users (Leopard or later) can use `qlmanager' to create a cover
+;; Mac users (Leopard or later)  use `qlmanager' to create a cover
 ;; image.
 ;;
 ;; The other programs can be also available, such as `pdfimages',
@@ -69,7 +69,7 @@
 ;;; History:
 
 ;; Revision 1.1  2010/11/26  sakurai
-;; Bug fixed: Wrong file collection in subdirectories (thx @authorNari)
+;; Bug fixed: Wrong file collection in subdirectories (thx @nari3)
 ;; Bug fixed: Wrong JPEG file generated.
 ;; Improved: added qlmanager settings and framwork (thx @peccul)
 ;; Improved: extracted the action list `anything-books-actions'
