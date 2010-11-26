@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 14:57:54 sakurai>
+;; Time-stamp: <2010-11-26 15:05:24 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Keywords: anything, convenience
@@ -480,7 +480,7 @@
 (defvar anything-books-source
   `((name . "PDF Books")
     (candidates . abks:collect-files)
-    (action . ,anything-books-actions)
+    (action . anything-books-actions)
     (migemo)
     (persistent-action . abks:preview-action)))
 
