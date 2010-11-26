@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 16:41:25 sakurai>
+;; Time-stamp: <2010-11-26 16:47:56 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.1
@@ -487,7 +487,7 @@
   '(("Open" 
      . (lambda (x) (abks:open-file x)))
     ("Add the book title to kill-ring" 
-     . (lambda (x) (kill-new x)))))
+     . (lambda (x) (kill-new (abks:file-to-title x))))))
 
 (defvar anything-books-source
   `((name . "PDF Books")
