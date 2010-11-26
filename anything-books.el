@@ -1,9 +1,9 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 14:30:44 sakurai>
+;; Time-stamp: <2010-11-26 14:57:54 sakurai>
 
-;; Author: SAKURAI Masashi <sakurai at kiwanami.net>
+;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Keywords: anything, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -464,21 +464,23 @@
         if (and (file-regular-p f) (string-match ".pdf$" i))
         do (push (cons (abks:file-to-title i) f) lst)
         if (and (file-directory-p f) (string-match "[^\\.]$" i))
-        do (setq lst (nconc lst (abks:collect-files f)))
+        do (setq lst (append lst (abks:collect-files f)))
         finally return (sort lst 'abks:collect-files-sort)))
 
 (defun abks:open-file (file)
   (deferred:process abks:open-command file)
   (format "PDF Opening : %s" (abks:file-to-title file)))
 
+(defvar anything-books-actions
+  '(("Open" 
+     . (lambda (x) (abks:open-file x)))
+    ("Add the book title to kill-ring" 
+     . (lambda (x) (kill-new x)))))
+
 (defvar anything-books-source
-  '((name . "PDF Books")
+  `((name . "PDF Books")
     (candidates . abks:collect-files)
-    (action
-     ("Open"
-      . (lambda (x) (abks:open-file x)))
-     ("Add the book title to kill-ring"
-      . (lambda (x) (kill-new x))))
+    (action . ,anything-books-actions)
     (migemo)
     (persistent-action . abks:preview-action)))
 
