@@ -1,9 +1,10 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 15:05:24 sakurai>
+;; Time-stamp: <2010-11-26 16:41:25 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
+;; Version: 1.1
 ;; Keywords: anything, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -60,10 +61,21 @@
 ;; works faster than `convert'.
 ;;
 ;; Mac users (Leopard or later) can use `qlmanager' to create a cover
-;; image. (thx @peccul)
+;; image.
 ;;
 ;; The other programs can be also available, such as `pdfimages',
 ;; `pdf2png' and so on.
+
+;;; History:
+
+;; Revision 1.1  2010/11/26  sakurai
+;; Bug fixed: Wrong file collection in subdirectories (thx @authorNari)
+;; Bug fixed: Wrong JPEG file generated.
+;; Improved: added qlmanager settings and framwork (thx @peccul)
+;; Improved: extracted the action list `anything-books-actions'
+;;
+;; Revision 1.0  2010/11/17  sakurai
+;; Initial revision
 
 (require 'cl)
 (require 'concurrent)
