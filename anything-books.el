@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-26 18:23:21 sakurai>
+;; Time-stamp: <2010-11-29 18:27:13 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.1
@@ -489,10 +489,10 @@
     ("Add the book title to kill-ring" 
      . (lambda (x) (kill-new (abks:file-to-title x))))))
 
-(defvar anything-books-source
+(defun anything-books-source-get ()
   `((name . "PDF Books")
     (candidates . abks:collect-files)
-    (action . anything-books-actions)
+    (action . ,anything-books-actions)
     (migemo)
     (persistent-action . abks:preview-action)))
 
@@ -533,7 +533,7 @@
    (t
     (abks:command-startup)
     (unwind-protect
-        (anything anything-books-source)
+        (anything (anything-books-source-get))
       (abks:command-cleanup)))))
 
 ;; (setq abks:debug t)
