@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010, 2011  SAKURAI Masashi
-;; Time-stamp: <2011-02-04 02:30:10 sakurai>
+;; Time-stamp: <2011-02-04 02:40:06 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.2
@@ -118,11 +118,8 @@
 ;; (setq abks:convert-cmd '("C:/Program Files/ImageMagick-xxxxx/convert.exe" "-resize" size from to))
 ;; (setq abks:mkcover-image-ext ".png")
 ;; (setq abks:copy-by-command nil)
-;; (defvar abks:open-command "fiber")
-;; (defun abks:open-file (file) ; [for Emacs23 on Windows] override function
-;;   (deferred:process "CMD.exe" "/C" file)
-;;   (format "PDF Opening : %s" (abks:file-to-title file)))
-
+;; (setq abks:open-command "fiber") ; meadow
+;; (setq abks:open-command '("CMD.exe" "/C" file)) ; Emacs23
 
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
@@ -508,7 +505,12 @@
         finally return (sort lst 'abks:collect-files-sort)))
 
 (defun abks:open-file (file)
-  (deferred:process abks:open-command file)
+  (apply 'deferred:process 
+    (if (stringp abks:open-command)
+        (list abks:open-command file)
+      (abks:list-template
+       abks:open-command
+       `((file . ,file)))))
   (format "PDF Opening : %s" (abks:file-to-title file)))
 
 (defvar anything-books-actions
