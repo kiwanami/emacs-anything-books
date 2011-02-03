@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010, 2011  SAKURAI Masashi
-;; Time-stamp: <2011-02-03 14:54:25 sakurai>
+;; Time-stamp: <2011-02-04 01:24:20 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.2
@@ -70,15 +70,17 @@
 
 ;; Revision 1.2  2011/02/03  sakurai
 ;; Bug fixed: Leaving temporary files in the working directory.
+;; Improved:  `abks:list-template' for Ghostscript arguments.
+;; Improved:  Applicating latest deferred.el.
 ;; 
 ;; Revision 1.1  2010/11/26  sakurai
-;; Bug fixed: Wrong file collection in subdirectories (thx @nari3)
+;; Bug fixed: Wrong file collection in subdirectories. (thx @nari3)
 ;; Bug fixed: Wrong JPEG file generated.
-;; Improved:  added qlmanager settings and framework (thx @peccul)
-;; Improved:  extracted the action list `anything-books-actions'
+;; Improved:  added qlmanager settings and framework. (thx @peccul)
+;; Improved:  extracted the action list `anything-books-actions'.
 ;;
 ;; Revision 1.0  2010/11/17  sakurai
-;; Initial revision
+;; Initial revision.
 
 (require 'cl)
 (require 'concurrent)
@@ -108,6 +110,21 @@
 ;; (setq abks:mkcover-cmd-pdf-postfix "")
 ;; (setq abks:mkcover-cmd '("qlmanage" "-t" pdf "-s" size "-o" dir))
 ;; (setq abks:mkcover-image-ext ".png")
+
+;; for Windows (Ghostscript and ImageMagick) setting
+;; [replace 'xxxx' to correct path on your machine]
+;; (setq abks:preview-temp-dir "C:/temp")
+;; (setq abks:mkcover-cmd '("C:/xxxxx/gs9.00/bin/gswin32c.exe" "-dSAFER" "-dBATCH" "-dNOPAUSE" "-sDEVICE=png16m" "-r50" "-dLastPage=1" (format "-sOutputFile=%s" (cdr (assq 'thum data-alist))) pdf))
+;; (setq abks:convert-cmd '("C:/Program Files/ImageMagick-xxxxx/convert.exe" "-resize" size from to))
+;; (setq abks:mkcover-image-ext ".png")
+;; (setq abks:copy-by-command nil)
+;; (defun abks:open-file (file) ; override function
+;;   (deferred:process
+;;     "CMD.exe" "/C"
+;;     (replace-regexp-in-string
+;;      "/" "\\\\" (encode-coding-string file 'cp932-dos)))
+;;   (format "PDF Opening : %s" (abks:file-to-title file)))
+
 
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
@@ -155,6 +172,10 @@
         (cond
          ((symbolp i)
           (cdr (assq i data-alist)))
+         ((listp i)
+          (let ((str (eval i)))
+            (abks:log ">>  template eval : %S" str)
+            str))
          (t i))))
 
 (defun abks:file-exists-p (file)
@@ -194,7 +215,7 @@
      (t type))))
 
 (defun abks:move-file-d (d from-path to-path)
-  (unless d (setq d (deferred:next 'identity)))
+  (unless d (setq d (deferred:succeed)))
   (abks:log ">>   local move : %s -> %s" from-path to-path)
   (lexical-let ((from-path from-path) (to-path to-path))
     (deferred:$
@@ -329,10 +350,9 @@
         (apply 'concat
                (loop for i from 1 to total
                      collect (if (<= i current) "O" ".")))))
-    (deferred:nextc (or d (deferred:succeed))
+    (deferred:watch (or d (deferred:succeed))
       (lambda (x)
-        (cc:signal-send abks:anything-channel 'progress progress)
-        x))))
+        (cc:signal-send abks:anything-channel 'progress progress)))))
 
 
 
@@ -376,7 +396,7 @@
              (ww (* (window-width win) (frame-char-width)))
              (wh (* (- (window-height win) 2) (frame-char-height))))
         (lexical-let ((resized-file (abks:get-preview-tmp-file)))
-          (abks:log ">>   convert : %s -> %s" cache-file resized-file)
+          (abks:log ">>   convert : %s -> %s [%sx%s]" cache-file resized-file ww wh)
           (deferred:$
             (apply 'deferred:process
                    (abks:list-template
@@ -397,8 +417,8 @@
       (lexical-let ((path path))
         (deferred:$
           (cc:semaphore-interrupt-all abks:preview-semaphore)
-          (deferred:nextc it
-            (lambda (x) (cc:signal-send abks:anything-channel 'image-convert-start) nil))
+          (deferred:watch it
+            (lambda (x) (cc:signal-send abks:anything-channel 'image-convert-start)))
           (abks:preview-progress it 1 4)
           (abks:preview-image-create-d it path)
           (abks:preview-progress it 3 4)
@@ -414,12 +434,11 @@
                 img)))
           (deferred:error it
             (lambda (e) (abks:log "Preview Error : %s" e)))
-          (deferred:nextc it
+          (deferred:watch it
             (lambda (x)
               (cc:semaphore-release abks:preview-semaphore)
               (cc:signal-send abks:anything-channel 'image-convert-finish)
-              (abks:log ">>   cleanup done : %s" path)
-              x))))))))
+              (abks:log ">>   cleanup done : %s" path)))))))))
 
 (defun abks:preview-load-image-data (file)
   (let ((buf (find-file-noselect file t t)))
@@ -428,7 +447,7 @@
 
 (defvar abks:preview-window nil "[internal]")
 
-(defun abks:preview-get-preview-window ()
+(defun abks:preview-init-preview-window ()
   (let ((win (anything-window)))
     (unless (and abks:preview-window
                  (window-live-p abks:preview-window))
@@ -443,14 +462,17 @@
        (abks:preview-buffer-init "No Image...")))
     abks:preview-window))
 
+(defun abks:preview-get-preview-window ()
+  (and (window-live-p abks:preview-window)
+       abks:preview-window))
+
 (defvar abks:preview-semaphore (cc:semaphore-create 1) "[internal]")
 
 (defun abks:preview (title path)
   (lexical-let ((path path) (title title))
-    (abks:preview-get-preview-window)
     (deferred:$
       (abks:preview-image-get-d path)
-      (deferred:nextc it
+      (deferred:watch it
         (lambda (img)
           (cc:signal-send abks:anything-channel 'show-image title path img)))
       (deferred:error it
@@ -467,6 +489,8 @@
   "[internal] Preventing the duplicate action invocation.")
 
 (defun abks:preview-action (file)
+  (unless abks:preview-window
+      (abks:preview-init-preview-window))
   (let ((title (abks:file-to-title file)))
     (unless (equal title abks:preview-action-last-title)
       (setq abks:preview-action-last-title title)
