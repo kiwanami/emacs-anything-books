@@ -1,7 +1,7 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010, 2011  SAKURAI Masashi
-;; Time-stamp: <2011-02-04 01:24:20 sakurai>
+;; Time-stamp: <2011-02-04 02:30:10 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
 ;; Version: 1.2
@@ -118,11 +118,9 @@
 ;; (setq abks:convert-cmd '("C:/Program Files/ImageMagick-xxxxx/convert.exe" "-resize" size from to))
 ;; (setq abks:mkcover-image-ext ".png")
 ;; (setq abks:copy-by-command nil)
-;; (defun abks:open-file (file) ; override function
-;;   (deferred:process
-;;     "CMD.exe" "/C"
-;;     (replace-regexp-in-string
-;;      "/" "\\\\" (encode-coding-string file 'cp932-dos)))
+;; (defvar abks:open-command "fiber")
+;; (defun abks:open-file (file) ; [for Emacs23 on Windows] override function
+;;   (deferred:process "CMD.exe" "/C" file)
 ;;   (format "PDF Opening : %s" (abks:file-to-title file)))
 
 
