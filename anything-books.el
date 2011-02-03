@@ -1,10 +1,10 @@
 ;;; anything-books.el --- Anything command for PDF books
 
-;; Copyright (C) 2010  SAKURAI Masashi
-;; Time-stamp: <2010-11-29 18:27:13 sakurai>
+;; Copyright (C) 2010, 2011  SAKURAI Masashi
+;; Time-stamp: <2011-02-03 14:54:25 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
-;; Version: 1.1
+;; Version: 1.2
 ;; Keywords: anything, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -68,11 +68,14 @@
 
 ;;; History:
 
+;; Revision 1.2  2011/02/03  sakurai
+;; Bug fixed: Leaving temporary files in the working directory.
+;; 
 ;; Revision 1.1  2010/11/26  sakurai
 ;; Bug fixed: Wrong file collection in subdirectories (thx @nari3)
 ;; Bug fixed: Wrong JPEG file generated.
-;; Improved: added qlmanager settings and framwork (thx @peccul)
-;; Improved: extracted the action list `anything-books-actions'
+;; Improved:  added qlmanager settings and framework (thx @peccul)
+;; Improved:  extracted the action list `anything-books-actions'
 ;;
 ;; Revision 1.0  2010/11/17  sakurai
 ;; Initial revision
@@ -190,9 +193,9 @@
      ((eq type 'jpg) 'jpeg)
      (t type))))
 
-(defun abks:copy-file-d (d from-path to-path)
+(defun abks:move-file-d (d from-path to-path)
   (unless d (setq d (deferred:next 'identity)))
-  (abks:log ">>   local copy : %s -> %s" from-path to-path)
+  (abks:log ">>   local move : %s -> %s" from-path to-path)
   (lexical-let ((from-path from-path) (to-path to-path))
     (deferred:$
       (if abks:copy-by-command
@@ -201,8 +204,11 @@
           (lambda (x) (ignore-errors (copy-file from-path to-path t t)))))
       (deferred:nextc it
         (lambda (x)
-          (unless (abks:file-exists-p to-path)
-            (error "Can not copy the file : %s -> %s" from-path to-path))
+          (cond
+           ((abks:file-exists-p to-path)
+            (delete-file from-path))
+           (t
+            (error "Can not copy the file : %s -> %s" from-path to-path)))
           to-path)))))
 
 
@@ -359,8 +365,8 @@
         (abks:preview-progress it 2 4)
         (deferred:nextc it
           (lambda (err)
-            (if (or t (abks:file-exists-p thum-file))
-                (abks:copy-file-d nil thum-file cache-file)
+            (if (abks:file-exists-p thum-file)
+                (abks:move-file-d nil thum-file cache-file)
               (error err)))))))))
 
 (defun abks:preview-image-convert-d(d path)
