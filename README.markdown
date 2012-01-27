@@ -17,7 +17,7 @@ you can use it with some customize variables.
 Put anything-books.el in your load-path, and add following code.
 
     (require 'anything-books)
-    (setq abks:boos-dir "your PDF library path!")
+    (setq abks:books-dir "your PDF library path!")
     (global-set-key (kbd "M-8") 'anything-books-command) ; key bind example
 
 
