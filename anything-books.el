@@ -1,10 +1,10 @@
 ;;; anything-books.el --- Anything command for PDF books
 
 ;; Copyright (C) 2010, 2011  SAKURAI Masashi
-;; Time-stamp: <2011-02-04 02:40:06 sakurai>
+;; Time-stamp: <2012-01-30 15:23:04 sakurai>
 
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
-;; Version: 1.2
+;; Version: 1.3
 ;; Keywords: anything, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -39,9 +39,9 @@
 ;; Put anything-books.el in your load-path, and add following code.
 
 ;; (require 'anything-books)
-;; (setq abks:boos-dir "your PDF library path!")
+;; (setq abks:books-dir "your PDF library path!")
 ;; (global-set-key (kbd "M-8") 'anything-books-command) ; key bind example
-;;
+
 
 ;;; Customize
 
@@ -68,16 +68,20 @@
 
 ;;; History:
 
+;; Revision 1.3  2012/01/30  sakurai
+;; Improved:  `abks:books-dir' can be taken a list of paths.
+;; Improved:  Fixed some typos (thx @tkf)
+;; 
 ;; Revision 1.2  2011/02/03  sakurai
 ;; Bug fixed: Leaving temporary files in the working directory.
-;; Improved:  `abks:list-template' for Ghostscript arguments.
-;; Improved:  Applicating latest deferred.el.
+;; Improved:  `abks:list-template' for GhostScript arguments.
+;; Improved:  Followed the latest deferred.el.
 ;; 
 ;; Revision 1.1  2010/11/26  sakurai
-;; Bug fixed: Wrong file collection in subdirectories. (thx @nari3)
+;; Bug fixed: Wrong file collection in sub-directories. (thx @nari3)
 ;; Bug fixed: Wrong JPEG file generated.
-;; Improved:  added qlmanager settings and framework. (thx @peccul)
-;; Improved:  extracted the action list `anything-books-actions'.
+;; Improved:  Added qlmanager settings and framework. (thx @peccul)
+;; Improved:  Extracted the action list `anything-books-actions'.
 ;;
 ;; Revision 1.0  2010/11/17  sakurai
 ;; Initial revision.
@@ -87,15 +91,15 @@
 
 ;;; Code:
 
-(defvar abks:books-dir nil)
+(defvar abks:books-dir nil "A PDF directory as a string for searching. If a list of the PDF directory strings is given, the anything-books searches entries from those directories.")
 
-(defvar abks:open-command "acroread")
+(defvar abks:open-command "acroread" "A PDF viewer program.")
 
-(defvar abks:cache-dir ".cache")
+(defvar abks:cache-dir ".cache" "A directory name for the thumbnail images.")
 
 ;; for evince setting
-(defvar abks:cache-pixel "600")
-(defvar abks:mkcover-cmd-pdf-postfix nil)
+(defvar abks:cache-pixel "600" "The image size of the thumbnail cache during converting PDF to PNG(JPEG).")
+(defvar abks:mkcover-cmd-pdf-postfix nil "The post-fix string for converting PDF to PNG(JPEG). See the below GhostScript setting.")
 (defvar abks:mkcover-cmd '("evince-thumbnailer" "-s" size pdf thum))
 (defvar abks:mkcover-image-ext ".png")
 
@@ -111,7 +115,7 @@
 ;; (setq abks:mkcover-cmd '("qlmanage" "-t" pdf "-s" size "-o" dir))
 ;; (setq abks:mkcover-image-ext ".png")
 
-;; for Windows (Ghostscript and ImageMagick) setting
+;; for Windows (GhostScript and ImageMagick) setting
 ;; [replace 'xxxx' to correct path on your machine]
 ;; (setq abks:preview-temp-dir "C:/temp")
 ;; (setq abks:mkcover-cmd '("C:/xxxxx/gs9.00/bin/gswin32c.exe" "-dSAFER" "-dBATCH" "-dNOPAUSE" "-sDEVICE=png16m" "-r50" "-dLastPage=1" (format "-sOutputFile=%s" (cdr (assq 'thum data-alist))) pdf))
@@ -501,14 +505,23 @@
 (defun abks:collect-files-sort (a b)
   (string-lessp (car a) (car b)))
 
-(defun abks:collect-files (&optional dir)
-  (loop for i in (directory-files (expand-file-name (or dir abks:books-dir)))
-        for f = (expand-file-name i (or dir abks:books-dir))
+(defun abks:collect-files ()
+  (cond
+   ((stringp abks:books-dir)
+    (abks:collect-files-rec abks:books-dir))
+   ((listp abks:books-dir)
+    (loop for dir in abks:books-dir
+          append (abks:collect-files-rec dir)))
+   (t (error "Unknown directory type : %s" abks:books-dir))))
+
+(defun abks:collect-files-rec (&optional dir)
+  (loop for i in (directory-files (expand-file-name dir))
+        for f = (expand-file-name i dir)
         with lst = nil
         if (and (file-regular-p f) (string-match ".pdf$" i))
         do (push (cons (abks:file-to-title i) f) lst)
         if (and (file-directory-p f) (string-match "[^\\.]$" i))
-        do (setq lst (append lst (abks:collect-files f)))
+        do (setq lst (append lst (abks:collect-files-rec f)))
         finally return (sort lst 'abks:collect-files-sort)))
 
 (defun abks:open-file (file)
