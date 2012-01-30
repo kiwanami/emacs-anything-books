@@ -121,6 +121,13 @@
 ;; (setq abks:open-command "fiber") ; meadow
 ;; (setq abks:open-command '("CMD.exe" "/C" file)) ; Emacs23
 
+;; for Windows (Mupad and GraphicsMagick) setting
+;; ref: https://gist.github.com/915070  (thx @osamu2001)
+;; [replace 'xxxx' to correct path on your machine]
+;; (setq abks:mkcover-cmd '("C:/xxx/mupdf/pdfdraw" "-o" thum pdf "1"))
+;; (setq abks:convert-cmd '("C:/xxx/GraphicsMagick-1.3.12-Q16/gm.exe" "convert" "-resize" size from to))
+;; (see the above settings for other variables.)
+
 (defvar abks:cmd-copy "cp" "Copy command")
 (defvar abks:copy-by-command t "If non-nil, this program copies files by the external command asynchronously. If nil, this program uses Emacs copy function `copy-file' synchronously.")
 
