@@ -515,14 +515,15 @@
    (t (error "Unknown directory type : %s" abks:books-dir))))
 
 (defun abks:collect-files-rec (&optional dir)
-  (loop for i in (directory-files (expand-file-name dir))
-        for f = (expand-file-name i dir)
-        with lst = nil
-        if (and (file-regular-p f) (string-match ".pdf$" i))
-        do (push (cons (abks:file-to-title i) f) lst)
-        if (and (file-directory-p f) (string-match "[^\\.]$" i))
-        do (setq lst (append lst (abks:collect-files-rec f)))
-        finally return (sort lst 'abks:collect-files-sort)))
+  (when (file-accessible-directory-p dir)
+    (loop for i in (directory-files (expand-file-name dir))
+          for f = (expand-file-name i dir)
+          with lst = nil
+          if (and (file-regular-p f) (string-match ".pdf$" i))
+          do (push (cons (abks:file-to-title i) f) lst)
+          if (and (file-directory-p f) (string-match "[^\\.]$" i))
+          do (setq lst (append lst (abks:collect-files-rec f)))
+          finally return (sort lst 'abks:collect-files-sort))))
 
 (defun abks:open-file (file)
   (apply 'deferred:process 
