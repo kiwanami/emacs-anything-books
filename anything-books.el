@@ -138,6 +138,10 @@
 (defvar abks:convert-cmd '("convert" "-resize" size from to))
 (defvar abks:preview-temp-dir "/tmp" "A directory to save a preview image temporally.")
 
+(defvar abks:anything-or-helm 'anything
+  "[internal] Backend for anything-books.
+Accepts `anything' or `helm'. `anything-books-command' and
+`helm-books-command' automatically sets this value.")
 
 
 
@@ -454,7 +458,9 @@
 (defvar abks:preview-window nil "[internal]")
 
 (defun abks:preview-init-preview-window ()
-  (let ((win (anything-window)))
+  (let ((win (if (eq abks:anything-or-helm 'helm)
+                 (helm-window)
+               (anything-window))))
     (unless (and abks:preview-window
                  (window-live-p abks:preview-window))
       (setq abks:preview-window
@@ -550,6 +556,11 @@
 (defadvice anything-move-selection-common (after abks:anything)
   (when (eq (anything-buffer-get) anything-buffer)
     (anything-execute-persistent-action)))
+
+(defadvice helm-move-selection-common (after abks:anything)
+  (when (eq (helm-buffer-get) helm-buffer)
+    (helm-execute-persistent-action)))
+
 (ad-deactivate-regexp "abks:anything")
 
 (defun abks:command-startup ()
@@ -582,10 +593,23 @@
    ((null abks:books-dir)
     (message "Set your book dir: `abks:books-dir'."))
    (t
-    (abks:command-startup)
-    (unwind-protect
-        (anything (anything-books-source-get))
-      (abks:command-cleanup)))))
+    (let ((abks:anything-or-helm 'anything))
+      (abks:command-startup)
+      (unwind-protect
+          (anything (anything-books-source-get))
+        (abks:command-cleanup))))))
+
+(defun helm-books-command ()
+  (interactive)
+  (cond
+   ((null abks:books-dir)
+    (message "Set your book dir: `abks:books-dir'."))
+   (t
+    (let ((abks:anything-or-helm 'helm))
+      (abks:command-startup)
+      (unwind-protect
+          (helm (anything-books-source-get))
+        (abks:command-cleanup))))))
 
 ;; (setq abks:debug t)
 ;; (eval-current-buffer)
