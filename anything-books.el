@@ -532,12 +532,13 @@ Accepts `anything' or `helm'. `anything-books-command' and
           finally return (sort lst 'abks:collect-files-sort))))
 
 (defun abks:open-file (file)
-  (apply 'deferred:process 
-    (if (stringp abks:open-command)
-        (list abks:open-command file)
-      (abks:list-template
-       abks:open-command
-       `((file . ,file)))))
+  (let ((process-connection-type nil))
+    (apply 'start-process "*abks:open-file*" nil
+           (if (stringp abks:open-command)
+               (list abks:open-command file)
+             (abks:list-template
+              abks:open-command
+              `((file . ,file))))))
   (format "PDF Opening : %s" (abks:file-to-title file)))
 
 (defvar anything-books-actions
