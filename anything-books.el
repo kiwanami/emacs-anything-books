@@ -138,6 +138,14 @@
 (defvar abks:convert-cmd '("convert" "-resize" size from to))
 (defvar abks:preview-temp-dir "/tmp" "A directory to save a preview image temporally.")
 
+(defvar abks:file-match
+  ".\\(pdf\\|ps\\|tif?f\\|dvi\\|djvu\\|cb[rzta7]\\)\\'"
+  "Regxp matched with files to view in anything-books.
+The file types must be supported by `abks:mkcover-cmd'.  The
+default file types are the ones supported by `evince-thumbnailer'.
+File types supported by evince are taken form:
+http://en.wikipedia.org/wiki/Evince#Supported_document_formats")
+
 (defvar abks:anything-or-helm 'anything
   "[internal] Backend for anything-books.
 Accepts `anything' or `helm'. `anything-books-command' and
@@ -525,7 +533,7 @@ Accepts `anything' or `helm'. `anything-books-command' and
     (loop for i in (directory-files (expand-file-name dir))
           for f = (expand-file-name i dir)
           with lst = nil
-          if (and (file-regular-p f) (string-match ".pdf$" i))
+          if (and (file-regular-p f) (string-match abks:file-match i))
           do (push (cons (abks:file-to-title i) f) lst)
           if (and (file-directory-p f) (string-match "[^\\.]$" i))
           do (setq lst (append lst (abks:collect-files-rec f)))
