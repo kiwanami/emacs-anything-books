@@ -503,7 +503,7 @@ Accepts `anything' or `helm'. `anything-books-command' and
 ;;; anything command
 
 (defun abks:file-to-title (path)
-  (substring (file-name-nondirectory path) 0 -4))
+  (file-name-sans-extension (file-name-nondirectory path)))
 
 (defvar abks:preview-action-last-title nil
   "[internal] Preventing the duplicate action invocation.")
