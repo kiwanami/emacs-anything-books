@@ -545,7 +545,9 @@ Accepts `anything' or `helm'. `anything-books-command' and
   '(("Open" 
      . (lambda (x) (abks:open-file x)))
     ("Add the book title to kill-ring" 
-     . (lambda (x) (kill-new (abks:file-to-title x))))))
+     . (lambda (x) (kill-new (abks:file-to-title x))))
+    ("Add the book path to kill-ring"
+     . (lambda (x) (kill-new (abbreviate-file-name x))))))
 
 (defun anything-books-source-get ()
   `((name . "PDF Books")
